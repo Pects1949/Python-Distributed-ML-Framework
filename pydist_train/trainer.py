@@ -174,8 +174,8 @@ class Trainer:
         accum = self.config.gradient_accumulation_steps
         n_batches = len(self.train_loader)
 
+        self.optimizer.zero_grad()  # zero once; re-zero only after each optimizer step
         for batch_idx, batch in enumerate(self.train_loader):
-            self.optimizer.zero_grad()  # zeroed per-batch (bug: clears accumulated grads)
             batch = _to_device(batch, self.strategy.device)
             self._call("on_step_start", self.global_step)
 
@@ -194,6 +194,7 @@ class Trainer:
                 if self.config.gradient_clip_val is not None:
                     self.strategy.clip_grad_norm(self.model, self.config.gradient_clip_val)
                 self.strategy.optimizer_step(self.optimizer)
+                self.optimizer.zero_grad()
                 if self.scheduler is not None:
                     self.scheduler.step()
                 self.global_step += 1
