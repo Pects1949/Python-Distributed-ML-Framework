@@ -290,12 +290,27 @@ def _build_scheduler(
     if config is None:
         return None
     name = config.name.lower()
+    warmup = config.warmup_steps
+    post_warmup_steps = max(1, num_training_steps - warmup)
+
     if name == "cosine":
-        return torch.optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=max(1, num_training_steps), **config.kwargs
+        main = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=post_warmup_steps, **config.kwargs
         )
-    if name == "step":
-        return torch.optim.lr_scheduler.StepLR(optimizer, **config.kwargs)
-    if name == "linear":
-        return torch.optim.lr_scheduler.LinearLR(optimizer, **config.kwargs)
-    raise ValueError(f"Unknown scheduler: {config.name!r}.  Choose cosine, step, or linear.")
+    elif name == "step":
+        main = torch.optim.lr_scheduler.StepLR(optimizer, **config.kwargs)
+    elif name == "linear":
+        main = torch.optim.lr_scheduler.LinearLR(optimizer, **config.kwargs)
+    else:
+        raise ValueError(f"Unknown scheduler: {config.name!r}.  Choose cosine, step, or linear.")
+
+    if warmup <= 0:
+        return main
+
+    # Prepend a brief linear warm-up phase before the main schedule.
+    warmup_sched = torch.optim.lr_scheduler.LinearLR(
+        optimizer, start_factor=1e-6, end_factor=1.0, total_iters=warmup
+    )
+    return torch.optim.lr_scheduler.SequentialLR(
+        optimizer, schedulers=[warmup_sched, main], milestones=[warmup]
+    )
