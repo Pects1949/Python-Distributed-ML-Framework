@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from contextlib import contextmanager
-from typing import Any, Generator
+from typing import Any, Generator, Optional
 
 import torch
 import torch.distributed as dist
@@ -74,7 +74,7 @@ def broadcast(tensor: torch.Tensor, src: int = 0) -> torch.Tensor:
     return tensor
 
 
-def gather_object(obj: Any, dst: int = 0) -> list[Any] | None:
+def gather_object(obj: Any, dst: int = 0) -> Optional[list[Any]]:
     """Gather an arbitrary Python object from all ranks to *dst*.
 
     Returns a list of objects on *dst* and ``None`` on all other ranks.
