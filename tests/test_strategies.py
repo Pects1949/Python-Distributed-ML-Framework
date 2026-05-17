@@ -60,16 +60,20 @@ class TestBaseStrategy:
         assert norm >= 0.0
 
     def test_model_state_dict_and_load(self):
+        import copy
+
         s = _CPUStrategy()
         s.setup(0, 1)
         model = nn.Linear(4, 2)
-        state = s.model_state_dict(model)
+        with torch.no_grad():
+            model.weight.fill_(1.0)
+        # Deep-copy so the snapshot is independent of in-place mutations below.
+        state = copy.deepcopy(s.model_state_dict(model))
         assert "weight" in state and "bias" in state
-        # Corrupt weights then reload
         with torch.no_grad():
             model.weight.fill_(0.0)
         s.load_model_state_dict(model, state)
-        assert not torch.all(model.weight == 0.0)
+        assert torch.all(model.weight == 1.0)
 
     def test_autocast_fp32_does_not_raise(self):
         s = _CPUStrategy()
